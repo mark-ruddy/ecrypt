@@ -18,8 +18,11 @@ struct EncArg {
     /// Password to encrypt with
     #[clap(long, short)]
     password: Option<String>,
-    /// File or directory to encrypt
-    item: String,
+    /// Output destination file or directory name
+    #[clap(long, short)]
+    dest: Option<String>,
+    /// Source file or directory to encrypt
+    source: String,
 }
 
 #[derive(Parser, Debug)]
@@ -45,7 +48,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Some(password) => password,
                 None => password::get_from_user()?,
             };
-            args.item;
+            let dest_path = match args.dest {
+                Some(dest_path) => dest_path,
+                None => format!("{}.ecrypt", args.source),
+            };
+            enc::encrypt_file(&args.source, &dest_path, &password)?;
         }
         Action::Stream(args) => {
             let password = match args.password {
