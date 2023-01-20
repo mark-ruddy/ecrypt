@@ -51,11 +51,6 @@ pub fn encrypt_file(
             break;
         }
     }
-
-    // remove secrets from memory after usage
     hash.zeroize();
-    salt.zeroize();
-    nonce.zeroize();
-
     Ok(())
 }
