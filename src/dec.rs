@@ -57,7 +57,7 @@ pub fn decrypt_file(
         } else if read_count == 0 {
             break;
         } else {
-            let plaintext = match stream_decryptor.decrypt_last(buffer.as_slice()) {
+            let plaintext = match stream_decryptor.decrypt_last(&buffer[..read_count]) {
                 Ok(plaintext) => plaintext,
                 Err(e) => return Err(format!("failed to decrypt last buffer: {}", e).into()),
             };
