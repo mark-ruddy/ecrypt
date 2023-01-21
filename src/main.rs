@@ -7,6 +7,7 @@ mod enc;
 mod password;
 mod stream;
 
+const HASH_START_INDEX: usize = 48;
 const HASH_STORED_SIZE: usize = 32;
 const SALT_SIZE: usize = 22;
 const NONCE_SIZE: usize = 19;
@@ -84,7 +85,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             dec::decrypt_file(&args.source, &dest_path, &password)?;
         }
         Action::Stream(args) => {
-            let password = match args.password {
+            let _password = match args.password {
                 Some(password) => password,
                 None => password::get_from_user()?,
             };

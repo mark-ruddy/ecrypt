@@ -34,9 +34,9 @@ dependencies = [
 
 [[package]]
 name = "argon_hash_password"
-version = "0.1.0"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48752d18be5c691642372f76f23c69175e7a26dc65a3011663fdd24713389211"
+checksum = "54786bb94b35a830db30101bd01ee2b4a63272b065ced1e8ff4a6393d709dc14"
 dependencies = [
  "argon2",
  "rand",
