@@ -1,6 +1,9 @@
 use clap::{Parser, Subcommand};
 use log::info;
-use std::{error::Error, fs::remove_file};
+use std::{
+    error::Error,
+    fs::{metadata, remove_dir_all, remove_file},
+};
 
 mod dec;
 mod enc;
@@ -75,13 +78,26 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Some(dest_path) => dest_path,
                 None => format!("{}{}", args.source, ENCRYPTED_SUFFIX),
             };
-            match enc::encrypt_file(&args.source, &dest_path, &password) {
-                Ok(()) => (),
-                Err(e) => {
-                    // If failure during encryption then delete the dest file
-                    remove_file(&dest_path)?;
-                    return Err(e);
+            let md = metadata(&args.source)?;
+            if md.is_file() {
+                match enc::encrypt_file(&args.source, &dest_path, &password) {
+                    Ok(()) => (),
+                    Err(e) => {
+                        // If failure during encryption then delete the dest file
+                        remove_file(&dest_path)?;
+                        return Err(e);
+                    }
                 }
+            } else if md.is_dir() {
+                match enc::encrypt_dir(&args.source, &dest_path, &password) {
+                    Ok(()) => (),
+                    Err(e) => {
+                        remove_dir_all(&dest_path)?;
+                        return Err(e);
+                    }
+                }
+            } else {
+                return Err(format!("file or directory {:?} does not exist", &args.source).into());
             }
         }
         Action::Dec(args) => {
@@ -99,17 +115,24 @@ fn main() -> Result<(), Box<dyn Error>> {
                     format!("{}{}", source, DECRYPTED_SUFFIX)
                 }
             };
-            match dec::decrypt_file(&args.source, &dest_path, &password) {
-                Ok(()) => (),
-                Err(e) => {
-                    // If failure during decryption then delete the dest file
-                    remove_file(&dest_path)?;
-                    return Err(format!(
-                        "incorrect decryption password or malformed encrypted file: {}",
-                        e
-                    )
-                    .into());
+            let md = metadata(&args.source)?;
+            if md.is_file() {
+                match dec::decrypt_file(&args.source, &dest_path, &password) {
+                    Ok(()) => (),
+                    Err(e) => {
+                        // If failure during decryption then delete the dest file
+                        remove_file(&dest_path)?;
+                        return Err(format!(
+                            "incorrect decryption password or malformed encrypted file: {}",
+                            e
+                        )
+                        .into());
+                    }
                 }
+            } else if md.is_dir() {
+                unreachable!();
+            } else {
+                return Err(format!("file or directory {:?} does not exist", &args.source).into());
             }
         }
         Action::Stream(args) => {

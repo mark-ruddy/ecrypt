@@ -1,5 +1,6 @@
 use super::{
-    utils::fill_hash_and_salt_from_password, BUFFER_LEN, HASH_STORED_SIZE, NONCE_SIZE, SALT_SIZE,
+    utils::fill_hash_and_salt_from_password, BUFFER_LEN, ENCRYPTED_SUFFIX, HASH_STORED_SIZE,
+    NONCE_SIZE, SALT_SIZE,
 };
 use chacha20poly1305::{aead::stream, KeyInit, XChaCha20Poly1305};
 use log::{debug, info};
@@ -10,6 +11,7 @@ use std::{
     io::{Read, Write},
     str,
 };
+use walkdir::WalkDir;
 use zeroize::Zeroize;
 
 pub fn encrypt_file(
@@ -61,5 +63,38 @@ pub fn encrypt_file(
         }
     }
     hash.zeroize();
+    Ok(())
+}
+
+pub fn encrypt_dir(
+    source_path: &str,
+    dest_path: &str,
+    password: &str,
+) -> Result<(), Box<dyn Error>> {
+    for entry in WalkDir::new(source_path) {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(e) => return Err(format!("failure iterating over directory entry: {}", e).into()),
+        };
+        let md = entry.metadata()?;
+        if md.is_dir() {
+            continue;
+        }
+        let entry_path = match entry.path().to_str() {
+            Some(entry_path) => entry_path,
+            None => return Err("directory entry name is not valid unicode".into()),
+        };
+
+        // create new dir, write encrypted files to it
+
+        let dest_path = format!("{}{}", entry_path, ENCRYPTED_SUFFIX);
+        match encrypt_file(entry_path, &dest_path, password) {
+            Ok(()) => (),
+            Err(e) => return Err(format!("failure encrypting directory entry: {}", e).into()),
+        }
+
+        println!("{:?}", entry);
+        println!("{}", entry.path().display());
+    }
     Ok(())
 }
