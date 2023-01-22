@@ -1,17 +1,21 @@
 use clap::{Parser, Subcommand};
 use log::info;
-use std::error::Error;
+use std::{error::Error, fs::remove_file};
 
 mod dec;
 mod enc;
 mod password;
 mod stream;
+mod utils;
 
 const HASH_START_INDEX: usize = 48;
 const HASH_STORED_SIZE: usize = 32;
 const SALT_SIZE: usize = 22;
 const NONCE_SIZE: usize = 19;
 const BUFFER_LEN: usize = 500;
+
+const ENCRYPTED_SUFFIX: &str = ".encrypted";
+const DECRYPTED_SUFFIX: &str = ".decrypted";
 
 #[derive(Subcommand, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -69,9 +73,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             };
             let dest_path = match args.dest {
                 Some(dest_path) => dest_path,
-                None => format!("{}.enc", args.source),
+                None => format!("{}{}", args.source, ENCRYPTED_SUFFIX),
             };
-            enc::encrypt_file(&args.source, &dest_path, &password)?;
+            match enc::encrypt_file(&args.source, &dest_path, &password) {
+                Ok(()) => (),
+                Err(e) => {
+                    // If failure during encryption then delete the dest file
+                    remove_file(&dest_path)?;
+                    return Err(e);
+                }
+            }
         }
         Action::Dec(args) => {
             let password = match args.password {
@@ -80,9 +91,26 @@ fn main() -> Result<(), Box<dyn Error>> {
             };
             let dest_path = match args.dest {
                 Some(dest_path) => dest_path,
-                None => format!("{}.dec", args.source),
+                None => {
+                    let source = match args.source.strip_suffix(ENCRYPTED_SUFFIX) {
+                        Some(source) => source,
+                        None => &args.source,
+                    };
+                    format!("{}{}", source, DECRYPTED_SUFFIX)
+                }
             };
-            dec::decrypt_file(&args.source, &dest_path, &password)?;
+            match dec::decrypt_file(&args.source, &dest_path, &password) {
+                Ok(()) => (),
+                Err(e) => {
+                    // If failure during decryption then delete the dest file
+                    remove_file(&dest_path)?;
+                    return Err(format!(
+                        "incorrect decryption password or malformed encrypted file: {}",
+                        e
+                    )
+                    .into());
+                }
+            }
         }
         Action::Stream(args) => {
             let _password = match args.password {

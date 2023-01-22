@@ -1,7 +1,8 @@
-use super::{BUFFER_LEN, HASH_START_INDEX, HASH_STORED_SIZE, NONCE_SIZE, SALT_SIZE};
-use argon_hash_password::{hash_and_verify, parse_saltstring};
+use super::{
+    utils::fill_hash_from_salt_and_password, BUFFER_LEN, HASH_STORED_SIZE, NONCE_SIZE, SALT_SIZE,
+};
 use chacha20poly1305::{aead::stream, KeyInit, XChaCha20Poly1305};
-use log::info;
+use log::{debug, info};
 use std::{
     error::Error,
     fs::File,
@@ -15,9 +16,11 @@ pub fn decrypt_file(
     dest_path: &str,
     password: &str,
 ) -> Result<(), Box<dyn Error>> {
-    let mut source_file = File::open(source_path)?;
     let mut salt = [0u8; SALT_SIZE];
     let mut nonce = [0u8; NONCE_SIZE];
+
+    let mut source_file = File::open(source_path)?;
+    let mut dest_file = File::create(dest_path)?;
 
     let salt_count = source_file.read(&mut salt)?;
     if salt_count != salt.len() {
@@ -29,25 +32,24 @@ pub fn decrypt_file(
         return Err(format!("failure reading nonce from start of source file").into());
     }
 
-    let saltstring = parse_saltstring(str::from_utf8(&salt)?)?;
-    let mut hash = hash_and_verify(password, saltstring)?;
-    let hash_bytes = hash.as_bytes();
-    let hash_bytes_sized = &hash_bytes[HASH_START_INDEX..HASH_START_INDEX + HASH_STORED_SIZE];
+    let mut hash = [0u8; HASH_STORED_SIZE];
+    fill_hash_from_salt_and_password(password, str::from_utf8(&salt)?, &mut hash)?;
 
-    info!("Nonce is: {}", String::from_utf8_lossy(&nonce));
-    info!("Nonce is: {:?}", &nonce);
-    info!("Salt is len {}: {}", salt.len(), str::from_utf8(&salt)?);
-    info!("Hash is: {}", String::from_utf8_lossy(hash_bytes_sized));
+    debug!("Nonce is: {}", String::from_utf8_lossy(&nonce));
+    debug!("Salt is len {}: {}", salt.len(), str::from_utf8(&salt)?);
+    debug!("Hash is: {}", String::from_utf8_lossy(&hash));
 
-    let aead = XChaCha20Poly1305::new(hash_bytes_sized.as_ref().into());
+    let aead = XChaCha20Poly1305::new(hash.as_ref().into());
     let mut stream_decryptor = stream::DecryptorBE32::from_aead(aead, nonce.as_ref().into());
 
-    let mut dest_file = File::create(dest_path)?;
+    info!(
+        "Writing decrypted data of file {:?} to {:?}",
+        source_path, dest_path
+    );
     const BUFFER_LEN_DEC: usize = BUFFER_LEN + 16;
     let mut buffer = [0u8; BUFFER_LEN_DEC];
     loop {
         let read_count = source_file.read(&mut buffer)?;
-        println!("buffer: {}", String::from_utf8_lossy(buffer.as_slice()));
         if read_count == BUFFER_LEN_DEC {
             let plaintext = match stream_decryptor.decrypt_next(buffer.as_slice()) {
                 Ok(plaintext) => plaintext,
