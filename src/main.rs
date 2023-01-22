@@ -122,3 +122,39 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        fs::{read_to_string, File},
+        io::Write,
+    };
+
+    const UNENCRYPTED_FILE_NAME: &str = "ecrypt_test.txt";
+    const UNENCRYPTED_FILE_TEXT: &str = "Unencrypted text in file";
+    const ENCRYPTED_FILE_NAME: &str = "ecrypt_test.txt.encrypted";
+    const DECRYPTED_FILE_NAME: &str = "ecrypt_test.txt.decrypted";
+    const PASSWORD: &str = "samplePass123";
+
+    fn teardown() {
+        remove_file(UNENCRYPTED_FILE_NAME).unwrap();
+        remove_file(ENCRYPTED_FILE_NAME).unwrap();
+        remove_file(DECRYPTED_FILE_NAME).unwrap();
+    }
+
+    #[test]
+    fn encrypt_and_decrypt_file() {
+        let mut unencrypted_file = File::create(UNENCRYPTED_FILE_NAME).unwrap();
+        unencrypted_file
+            .write(UNENCRYPTED_FILE_TEXT.as_bytes())
+            .unwrap();
+        enc::encrypt_file(UNENCRYPTED_FILE_NAME, ENCRYPTED_FILE_NAME, PASSWORD).unwrap();
+        dec::decrypt_file(ENCRYPTED_FILE_NAME, DECRYPTED_FILE_NAME, PASSWORD).unwrap();
+        assert_eq!(
+            read_to_string(DECRYPTED_FILE_NAME).unwrap(),
+            UNENCRYPTED_FILE_TEXT
+        );
+        teardown();
+    }
+}
