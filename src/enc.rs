@@ -3,6 +3,7 @@ use super::{
     NONCE_SIZE, SALT_SIZE,
 };
 use chacha20poly1305::{aead::stream, KeyInit, XChaCha20Poly1305};
+use flate2::{write::GzEncoder, Compression};
 use log::{debug, info};
 use rand::{rngs::OsRng, RngCore};
 use std::{
@@ -11,7 +12,6 @@ use std::{
     io::{Read, Write},
     str,
 };
-use walkdir::WalkDir;
 use zeroize::Zeroize;
 
 pub fn encrypt_file(
@@ -71,30 +71,11 @@ pub fn encrypt_dir(
     dest_path: &str,
     password: &str,
 ) -> Result<(), Box<dyn Error>> {
-    for entry in WalkDir::new(source_path) {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(e) => return Err(format!("failure iterating over directory entry: {}", e).into()),
-        };
-        let md = entry.metadata()?;
-        if md.is_dir() {
-            continue;
-        }
-        let entry_path = match entry.path().to_str() {
-            Some(entry_path) => entry_path,
-            None => return Err("directory entry name is not valid unicode".into()),
-        };
-
-        // create new dir, write encrypted files to it
-
-        let dest_path = format!("{}{}", entry_path, ENCRYPTED_SUFFIX);
-        match encrypt_file(entry_path, &dest_path, password) {
-            Ok(()) => (),
-            Err(e) => return Err(format!("failure encrypting directory entry: {}", e).into()),
-        }
-
-        println!("{:?}", entry);
-        println!("{}", entry.path().display());
-    }
+    let compressed_archive_path = format!("{}.tgz", source_path);
+    let compressed_dir = File::create(compressed_dir_path)?;
+    let enc = GzEncoder::new(compressed_dir, Compression::default());
+    let mut tar = tar::Builder::new(enc);
+    tar.append_dir_all(source_path, source_path)?;
+    encrypt_file(&compressed_archive_path, dest_path, password)
     Ok(())
 }
