@@ -1,6 +1,6 @@
 use super::{
-    utils::fill_hash_and_salt_from_password, BUFFER_LEN, ENCRYPTED_SUFFIX, HASH_STORED_SIZE,
-    NONCE_SIZE, SALT_SIZE,
+    utils::{create_new, fill_hash_and_salt_from_password},
+    BUFFER_LEN, HASH_STORED_SIZE, NONCE_SIZE, SALT_SIZE,
 };
 use chacha20poly1305::{aead::stream, KeyInit, XChaCha20Poly1305};
 use flate2::{write::GzEncoder, Compression};
@@ -33,7 +33,7 @@ pub fn encrypt_file(
     let mut stream_encryptor = stream::EncryptorBE32::from_aead(aead, nonce.as_ref().into());
 
     let mut source_file = File::open(source_path)?;
-    let mut dest_file = File::create(dest_path)?;
+    let mut dest_file = create_new(dest_path)?;
 
     dest_file.write(&salt)?;
     dest_file.write(&nonce)?;
@@ -76,7 +76,7 @@ pub fn encrypt_dir(
     if compress {
         archive_path = format!("{}.tgz", source_path);
     }
-    let archive = File::create(archive_path)?;
+    let archive = create_new(&archive_path)?;
     if compress {
         let enc = GzEncoder::new(archive, Compression::default());
         let mut tar = tar::Builder::new(enc);
@@ -86,6 +86,7 @@ pub fn encrypt_dir(
         let mut tar = tar::Builder::new(enc);
         tar.append_dir_all(source_path, source_path)?;
     }
+    // encrypt_file(archive_path)
     // encrypt_file(&compressed_archive_path, dest_path, password);
     Ok(())
 }

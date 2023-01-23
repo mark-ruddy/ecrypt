@@ -1,5 +1,6 @@
 use super::{
-    utils::fill_hash_from_salt_and_password, BUFFER_LEN, HASH_STORED_SIZE, NONCE_SIZE, SALT_SIZE,
+    utils::{create_new, fill_hash_from_salt_and_password},
+    BUFFER_LEN, HASH_STORED_SIZE, NONCE_SIZE, SALT_SIZE,
 };
 use chacha20poly1305::{aead::stream, KeyInit, XChaCha20Poly1305};
 use log::{debug, info};
@@ -20,7 +21,7 @@ pub fn decrypt_file(
     let mut nonce = [0u8; NONCE_SIZE];
 
     let mut source_file = File::open(source_path)?;
-    let mut dest_file = File::create(dest_path)?;
+    let mut dest_file = create_new(dest_path)?;
 
     let salt_count = source_file.read(&mut salt)?;
     if salt_count != salt.len() {
