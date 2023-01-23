@@ -1,5 +1,5 @@
 # ecrypt (Easy Encryption)
-Tool to easily encrypt and decrypt files or directories with an easy-to-use and opinionated CLI interface.  
+CLI tool to easily encrypt and decrypt files or directories.
 
 The encryption/decryption process and the source code is transparent and easily understandable, see the [Under the Hood](#under-the-hood) section.
 

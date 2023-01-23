@@ -1,7 +1,12 @@
 [package]
 name = "ecrypt"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
+description = "CLI tool to easily encrypt and decrypt files or directories"
+homepage = "https://github.com/tirax-lab/ecrypt"
+repository = "https://github.com/tirax-lab/ecrypt"
+license-file = "LICENSE.txt"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
