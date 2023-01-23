@@ -100,11 +100,10 @@ pub fn encrypt_dir(
     }
     encrypt_file(&tarball_path, &dest_path, &password, remove)?;
 
-    // remove_file(tarball_path)?;
     if remove {
         remove_dir_all(source_path)?;
     } else {
-        warn!("The unencrypted directory '{}' remains on disk, you can remove it or run ecrypt with the --remove/-r flag", source_path);
+        warn!("The unencrypted directory '{}' remains on disk, you can remove it manually or run ecrypt with the --remove/-r flag", source_path);
     }
     Ok(())
 }

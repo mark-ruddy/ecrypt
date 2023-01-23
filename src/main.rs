@@ -9,7 +9,6 @@ use std::{
 mod dec;
 mod enc;
 mod password;
-mod stream;
 mod utils;
 
 const HASH_START_INDEX: usize = 48;
@@ -83,14 +82,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         Action::Enc(args) => {
             let password = match args.password {
                 Some(password) => password,
-                None => password::get_from_user()?,
+                None => password::get_from_user(true)?,
             };
-            let dest_path = match args.dest {
-                Some(dest_path) => dest_path,
-                None => format!("{}{}", args.source, ENCRYPTED_DIR_SUFFIX),
-            };
+
             let md = metadata(&args.source)?;
             if md.is_file() {
+                let dest_path = match args.dest {
+                    Some(dest_path) => dest_path,
+                    None => format!("{}{}", args.source, ENCRYPTED_SUFFIX),
+                };
                 if args.compress {
                     warn!("Compress option is only supported for directory encryption");
                 }
@@ -98,11 +98,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                     Ok(()) => (),
                     Err(e) => {
                         // If failure during encryption then delete the dest file
-                        remove_file(&dest_path)?;
+                        let _ = remove_file(&dest_path);
                         return Err(e);
                     }
                 }
             } else if md.is_dir() {
+                let dest_path = match args.dest {
+                    Some(dest_path) => dest_path,
+                    None => format!("{}{}", args.source, ENCRYPTED_DIR_SUFFIX),
+                };
                 match enc::encrypt_dir(
                     &args.source,
                     &dest_path,
@@ -112,7 +116,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 ) {
                     Ok(()) => (),
                     Err(e) => {
-                        remove_dir_all(&dest_path)?;
+                        let _ = remove_dir_all(&dest_path);
                         return Err(e);
                     }
                 }
@@ -123,7 +127,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Action::Dec(args) => {
             let password = match args.password {
                 Some(password) => password,
-                None => password::get_from_user()?,
+                None => password::get_from_user(false)?,
             };
             let dest_path = match args.dest {
                 Some(dest_path) => dest_path,
@@ -146,7 +150,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 match dec::decrypt_file(&args.source, &dest_path, &password) {
                     Ok(()) => (),
                     Err(e) => {
-                        // If failure during decryption then delete the dest file
                         let _ = remove_file(&dest_path);
                         return Err(format!(
                             "incorrect decryption password or malformed encrypted file: {}",
@@ -172,7 +175,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Action::Stream(args) => {
             let _password = match args.password {
                 Some(password) => password,
-                None => password::get_from_user()?,
+                None => password::get_from_user(true)?,
             };
             info!("not yet implemented");
         }

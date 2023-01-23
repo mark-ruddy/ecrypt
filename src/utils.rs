@@ -39,7 +39,7 @@ pub fn create_new(path: &str) -> Result<File, Box<dyn Error>> {
     {
         Ok(file) => Ok(file),
         Err(e) => Err(format!(
-            "Failed to create new file '{}', it may exist already: {}",
+            "failed to create new file '{}', it may exist already: {}",
             path, e
         )
         .into()),
