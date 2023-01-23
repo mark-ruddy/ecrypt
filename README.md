@@ -48,7 +48,7 @@ Decryption password:
 [2023-01-23T20:41:33Z INFO  ecrypt::dec] Unpacking tarball of decrypted directory: 'directory.decrypted'
 ```
 
-This will create 2 outputs - a `directory.decrypted` file which is the decrypted tarball, and the actual unencrypted directory itself `directory` will be there
+This will create 2 outputs: a `directory.decrypted` file which is the decrypted tarball, which has been unpacked to produce the `directory`
 
 ## Under the Hood
 This section documents how `ecrypt` handles file/directory encryption and decryption so you can evaluate if it is suitable for your security needs. For background see the article on Rust file encryption by [Sylvian Kerkour, the author of Black Hat Rust](https://kerkour.com/rust-file-encryption-chacha20poly1305-argon2):
