@@ -70,12 +70,22 @@ pub fn encrypt_dir(
     source_path: &str,
     dest_path: &str,
     password: &str,
+    compress: bool,
 ) -> Result<(), Box<dyn Error>> {
-    let compressed_archive_path = format!("{}.tgz", source_path);
-    let compressed_dir = File::create(compressed_dir_path)?;
-    let enc = GzEncoder::new(compressed_dir, Compression::default());
-    let mut tar = tar::Builder::new(enc);
-    tar.append_dir_all(source_path, source_path)?;
-    encrypt_file(&compressed_archive_path, dest_path, password)
+    let mut archive_path = format!("{}.tar", source_path);
+    if compress {
+        archive_path = format!("{}.tgz", source_path);
+    }
+    let archive = File::create(archive_path)?;
+    if compress {
+        let enc = GzEncoder::new(archive, Compression::default());
+        let mut tar = tar::Builder::new(enc);
+        tar.append_dir_all(source_path, source_path)?;
+    } else {
+        let enc = GzEncoder::new(archive, Compression::none());
+        let mut tar = tar::Builder::new(enc);
+        tar.append_dir_all(source_path, source_path)?;
+    }
+    // encrypt_file(&compressed_archive_path, dest_path, password);
     Ok(())
 }

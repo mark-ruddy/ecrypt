@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use log::info;
+use log::{info, warn};
 use std::{
     error::Error,
     fs::{metadata, remove_dir_all, remove_file},
@@ -36,6 +36,9 @@ struct EncArg {
     /// Output destination file or directory name
     #[clap(long, short)]
     dest: Option<String>,
+    /// Tar gunzip compress the directory to encrypt
+    #[clap(long, short)]
+    compress: bool,
     /// Source file or directory to encrypt
     source: String,
 }
@@ -80,6 +83,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             };
             let md = metadata(&args.source)?;
             if md.is_file() {
+                if args.compress {
+                    warn!("Compress option is only supported for directory encryption");
+                }
                 match enc::encrypt_file(&args.source, &dest_path, &password) {
                     Ok(()) => (),
                     Err(e) => {
@@ -89,7 +95,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
                 }
             } else if md.is_dir() {
-                match enc::encrypt_dir(&args.source, &dest_path, &password) {
+                match enc::encrypt_dir(&args.source, &dest_path, &password, args.compress) {
                     Ok(()) => (),
                     Err(e) => {
                         remove_dir_all(&dest_path)?;
