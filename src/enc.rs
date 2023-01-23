@@ -4,11 +4,11 @@ use super::{
 };
 use chacha20poly1305::{aead::stream, KeyInit, XChaCha20Poly1305};
 use flate2::{write::GzEncoder, Compression};
-use log::{debug, info};
+use log::{debug, info, warn};
 use rand::{rngs::OsRng, RngCore};
 use std::{
     error::Error,
-    fs::File,
+    fs::{remove_dir_all, remove_file, File},
     io::{Read, Write},
     str,
 };
@@ -18,6 +18,7 @@ pub fn encrypt_file(
     source_path: &str,
     dest_path: &str,
     password: &str,
+    remove: bool,
 ) -> Result<(), Box<dyn Error>> {
     let mut nonce = [0u8; NONCE_SIZE];
     let mut hash = [0u8; HASH_STORED_SIZE];
@@ -26,8 +27,8 @@ pub fn encrypt_file(
     fill_hash_and_salt_from_password(password, &mut hash, &mut salt)?;
 
     debug!("Nonce is: {}", String::from_utf8_lossy(&nonce));
-    debug!("Hash is: {}", String::from_utf8_lossy(&hash));
     debug!("Salt is: {}", String::from_utf8_lossy(&salt));
+    debug!("Hash is: {}", String::from_utf8_lossy(&hash));
 
     let aead = XChaCha20Poly1305::new(hash.as_ref().into());
     let mut stream_encryptor = stream::EncryptorBE32::from_aead(aead, nonce.as_ref().into());
@@ -63,6 +64,12 @@ pub fn encrypt_file(
         }
     }
     hash.zeroize();
+
+    if remove {
+        remove_file(source_path)?;
+    } else {
+        warn!("The unencrypted file '{}' remains on disk, you can remove it manually or run ecrypt with the --remove/-r flag", source_path);
+    }
     Ok(())
 }
 
@@ -71,22 +78,33 @@ pub fn encrypt_dir(
     dest_path: &str,
     password: &str,
     compress: bool,
+    remove: bool,
 ) -> Result<(), Box<dyn Error>> {
-    let mut archive_path = format!("{}.tar", source_path);
+    let mut tarball_path = format!("{}.tar", source_path);
     if compress {
-        archive_path = format!("{}.tgz", source_path);
+        tarball_path = format!("{}.tgz", source_path);
     }
-    let archive = create_new(&archive_path)?;
+    info!(
+        "Creating temporary tarball of '{}' directory to encrypt: '{}'",
+        source_path, tarball_path
+    );
+    let tarball = create_new(&tarball_path)?;
     if compress {
-        let enc = GzEncoder::new(archive, Compression::default());
+        let enc = GzEncoder::new(tarball, Compression::default());
         let mut tar = tar::Builder::new(enc);
         tar.append_dir_all(source_path, source_path)?;
     } else {
-        let enc = GzEncoder::new(archive, Compression::none());
+        let enc = GzEncoder::new(tarball, Compression::none());
         let mut tar = tar::Builder::new(enc);
         tar.append_dir_all(source_path, source_path)?;
     }
-    // encrypt_file(archive_path)
-    // encrypt_file(&compressed_archive_path, dest_path, password);
+    encrypt_file(&tarball_path, &dest_path, &password, remove)?;
+
+    // remove_file(tarball_path)?;
+    if remove {
+        remove_dir_all(source_path)?;
+    } else {
+        warn!("The unencrypted directory '{}' remains on disk, you can remove it or run ecrypt with the --remove/-r flag", source_path);
+    }
     Ok(())
 }

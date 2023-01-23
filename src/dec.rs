@@ -3,6 +3,7 @@ use super::{
     BUFFER_LEN, HASH_STORED_SIZE, NONCE_SIZE, SALT_SIZE,
 };
 use chacha20poly1305::{aead::stream, KeyInit, XChaCha20Poly1305};
+use flate2::read::GzDecoder;
 use log::{debug, info};
 use std::{
     error::Error,
@@ -10,6 +11,7 @@ use std::{
     io::{Read, Write},
     str,
 };
+use tar::Archive;
 use zeroize::Zeroize;
 
 pub fn decrypt_file(
@@ -37,7 +39,7 @@ pub fn decrypt_file(
     fill_hash_from_salt_and_password(password, str::from_utf8(&salt)?, &mut hash)?;
 
     debug!("Nonce is: {}", String::from_utf8_lossy(&nonce));
-    debug!("Salt is len {}: {}", salt.len(), str::from_utf8(&salt)?);
+    debug!("Salt is: {}", str::from_utf8(&salt)?);
     debug!("Hash is: {}", String::from_utf8_lossy(&hash));
 
     let aead = XChaCha20Poly1305::new(hash.as_ref().into());
@@ -69,5 +71,20 @@ pub fn decrypt_file(
         }
     }
     hash.zeroize();
+    Ok(())
+}
+
+pub fn decrypt_dir(
+    source_path: &str,
+    dest_path: &str,
+    password: &str,
+) -> Result<(), Box<dyn Error>> {
+    decrypt_file(&source_path, &dest_path, &password)?;
+
+    info!("Unpacking tarball of decrypted directory: '{}'", dest_path);
+    let decrypted_dir_tarball = File::open(dest_path)?;
+    let dec = GzDecoder::new(decrypted_dir_tarball);
+    let mut decrypted_dir_archive = Archive::new(dec);
+    decrypted_dir_archive.unpack(".")?;
     Ok(())
 }
